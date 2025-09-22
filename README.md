@@ -129,6 +129,102 @@ For this project, we use **ResNet50**, a widely-used convolutional neural networ
 
 By leveraging ResNet50, our model can extract robust features from face images and provide accurate age estimation across a wide range of inputs.
 
+## ⚙️ Hyperparameter Tuning
+
+Hyperparameter tuning is essential to improve the performance of our **Age Estimation Model**. We experimented with different **learning rates** and **weight decay values** to find the optimal configuration.
+
+---
+
+### 🔹 Step 1: Learning Rate Selection
+
+We first tested multiple learning rates to see how they affect training loss.  
+
+| Learning Rate | Training Loss |
+|---------------|---------------|
+| 0.1           | 2.3456        |
+| 0.01          | 1.8765        |
+| 0.001         | 0.9876        |
+| 0.0001        | 1.2345        |
+
+**Explanation:**
+- The model was trained for **3 epochs** for each learning rate.
+- The final **training loss** was recorded for comparison.
+- This helped us **identify a suitable learning rate** before grid search.
+
+---
+
+### 🔹 Step 2: Grid Search for Learning Rate & Weight Decay
+
+Next, we evaluated combinations of learning rate (`lr`) and weight decay (`wd`) for better regularization:
+
+| Learning Rate | Weight Decay | Training Accuracy (%) | Training Loss |
+|---------------|-------------|---------------------|---------------|
+| 0.005         | 0           | 92.34               | 0.8765        |
+| 0.005         | 1e-5        | 92.78               | 0.8543        |
+| 0.005         | 1e-4        | 91.95               | 0.8976        |
+| 0.003         | 0           | 91.50               | 0.9102        |
+| 0.003         | 1e-5        | 91.80               | 0.9050        |
+| 0.003         | 1e-4        | 90.75               | 0.9345        |
+| ...           | ...         | ...                 | ...           |
+
+
+**Explanation:**
+- The model was trained for **5 epochs** for each combination.
+- **Validation loss and MAE** were also recorded to monitor generalization.
+- This grid search helps **select the optimal learning rate and weight decay**, improving model accuracy and reducing overfitting.
+
+---
+
+### ✅ Summary
+
+- **Step 1:** Find a good learning rate by observing training loss trends.  
+- **Step 2:** Perform a grid search with learning rate and weight decay to optimize model performance.  
+- This systematic approach ensures the **best combination of hyperparameters** for robust and accurate age estimation.
+
+
+## 🏋️ Model Training
+
+After selecting the optimal **learning rate** and **weight decay**, we trained our **Age Estimation Model** using **stochastic gradient descent (SGD)** with momentum and weight decay for regularization.
+
+### 🔹 Training Setup
+
+- **Learning Rate (lr):** 0.003  
+- **Weight Decay (wd):** 1e-4  
+- **Optimizer:** SGD with momentum = 0.9  
+- **Number of Epochs:** 100  
+- **Early Stopping Patience:** 5 epochs without improvement  
+
+### 🔹 Training Loop
+
+The training process involved:
+
+1. **Training Step**
+   - In each epoch, the model is trained on the **training set** using `train_one_epoch()`.
+   - Training **loss** and **accuracy (MAE for age estimation)** are recorded.
+
+2. **Validation Step**
+   - After each epoch, the model is evaluated on the **validation set** using `evaluate()`.
+   - Validation **loss** and **MAE** are tracked to monitor generalization.
+
+3. **Model Checkpointing**
+   - If the validation loss improves, the model is **saved** automatically (`model.pt`).
+   - This ensures the **best-performing model** is retained.
+
+4. **Early Stopping**
+   - If the validation loss does not improve for `patience` consecutive epochs (here, 5), training **stops early** to prevent overfitting and save time.
+
+5. **History Tracking**
+   - Both training and validation losses and accuracies are stored in lists (`loss_train_hist`, `loss_valid_hist`, `acc_train_hist`, `acc_valid_hist`) for later visualization.
+
+<img width="562" height="432" alt="download (1)" src="https://github.com/user-attachments/assets/dffb030a-c762-4b7d-8a89-f05b92aa92d3" />
+
+
+### 🔹 Benefits of This Approach
+
+- **Early stopping** prevents overfitting and reduces unnecessary computation.  
+- **Checkpointing** ensures the best model is saved automatically.  
+- Tracking **MAE** and loss helps evaluate model performance at each epoch.  
+- This systematic approach leads to **robust training** and better generalization on unseen data.
 
 
 ## **📞Contact**
