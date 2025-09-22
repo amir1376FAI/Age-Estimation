@@ -110,6 +110,26 @@ White and Indian groups are the most represented, while the "Others" category ha
 - **Data Normalization and Standardization**  
   Ensures that all images have a consistent scale and distribution for better model training.
 
+## 💡 Model
+
+For this project, we use **ResNet50**, a widely-used convolutional neural network (CNN) known for its high performance in image recognition tasks. ResNet, short for **Residual Network**, introduces the concept of **residual learning**, which helps train very deep networks effectively by addressing the **vanishing gradient problem**.
+
+![ResNet50 Architecture](https://towardsdatascience.com/wp-content/uploads/2022/08/1rPktw9-nz-dy9CFcddMBdQ.jpeg)
+
+
+### Key Features of ResNet50:
+- **50 layers deep** including convolutional, batch normalization, and identity shortcut layers  
+- **Residual blocks** allow the network to learn **identity mappings**, making it easier for the network to learn deeper representations  
+- Pretrained versions (on ImageNet) can be fine-tuned for **transfer learning**, which accelerates training and improves performance on smaller datasets  
+
+### Why ResNet50 for Age Estimation:
+- Effectively captures **facial features** at multiple levels of abstraction  
+- Handles **complex variations** in pose, lighting, and expression  
+- Provides a strong backbone for regression tasks such as predicting **continuous age values**  
+
+By leveraging ResNet50, our model can extract robust features from face images and provide accurate age estimation across a wide range of inputs.
+
+
 
 ## **📞Contact**
 For any queries or suggestions, reach out to us through the Issues section on GitHub.
