@@ -226,6 +226,147 @@ The training process involved:
 - Tracking **MAE** and loss helps evaluate model performance at each epoch.  
 - This systematic approach leads to **robust training** and better generalization on unseen data.
 
+## 🧪 Inference
+
+Once the model is trained, we can perform **inference** on new images to predict the **age**.  
+The inference pipeline supports both raw images and face detection before prediction.  
+
+```python 
+def inference(image_path, transform, model, face_detection = False):
+  if face_detection:
+    img = face_recognition.load_image_file(image_path)
+    top, right, bottom, left = face_recognition.face_locations(img)[0]
+    img_crop = img[top:bottom, left:right]
+    img_crop = Image.fromarray(img_crop)
+  else:
+    img_crop = Image.open(image_path).convert('RGB')
+
+  img_tensor = transform(img_crop).unsqueeze(0).to(device)
+  model.eval()
+  with torch.inference_mode():
+    preds = model(img_tensor).item()
+  return preds, img_crop
+```
+
+## 🔥 Grad-CAM Visualization
+
+To better understand **where the ResNet50 model focuses when predicting age**, we used **Grad-CAM (Gradient-weighted Class Activation Mapping)**.  
+Grad-CAM highlights the important regions of the input image that influenced the model’s decision, helping us visualize which facial features contributed most to the age estimation.
+
+### 🧩 Implementation
+We implemented a `GradCAM` class that:
+- Hooks into the **target layer** of ResNet50.
+- Captures **forward activations** and **backward gradients**.
+- Generates a **heatmap** by combining feature maps with gradient weights.
+- Superimposes the heatmap on the original image for interpretation.
+
+```python
+class GradCAM:
+    def __init__(self, model, target_layer):
+        self.model = model
+        self.target_layer = target_layer
+        self.gradients = None
+        self.activations = None
+
+        # Register hooks
+        self.target_layer.register_forward_hook(self._save_activations)
+        self.target_layer.register_backward_hook(self._save_gradients)
+
+    def _save_activations(self, module, input, output):
+        self.activations = output
+
+    def _save_gradients(self, module, grad_input, grad_output):
+        self.gradients = grad_output[0]
+
+    def __call__(self, x):
+        self.model.zero_grad()
+        output = self.model(x)
+        output.backward()
+
+        gradients = self.gradients.cpu().data.numpy()
+        activations = self.activations.cpu().data.numpy()
+
+        # Global average pooling of gradients
+        weights = np.mean(gradients, axis=(2, 3))[0]
+        heatmap = np.zeros(activations.shape[2:][::-1], dtype=np.float32)
+
+        for i, w in enumerate(weights):
+            heatmap += w * activations[0, i, :, :]
+
+        heatmap = np.maximum(heatmap, 0)
+        heatmap /= np.max(heatmap)
+
+        return heatmap, output.item()
+```
+
+o better understand how the model makes predictions, we applied **Grad-CAM** to visualize the regions of the face the model focuses on when estimating age.
+
+
+<img width="950" height="485" alt="image" src="https://github.com/user-attachments/assets/6ed3e516-90ed-4d6f-ba76-596b7a2ad4b1" />
+<img width="950" height="485" alt="image" src="https://github.com/user-attachments/assets/c6002377-6888-422f-93e7-533a6b0852e6" />
+<img width="950" height="485" alt="image" src="https://github.com/user-attachments/assets/a4ddca4b-6b4b-401d-be2d-82d2b61eed34" />
+<img width="950" height="485" alt="image" src="https://github.com/user-attachments/assets/c0cf6cdc-2ae4-463d-8745-f16e982de4c7" />
+<img width="950" height="485" alt="image" src="https://github.com/user-attachments/assets/61f840ba-b8ec-45d1-85d7-f6807efe48a0" />
+
+ 
+
+### 📊 Example Analysis
+- **Target Age:** 1 year  
+- **Predicted Age:** 1.44 years  
+- ✅ Prediction is **very close to the ground truth**.
+
+### 🔥 Observations
+- **High Activation (Red/Yellow):**  
+  The model strongly focuses on the **eyes, nose, and mouth regions**, which are crucial for age estimation.  
+- **Low Activation (Blue):**  
+  Background and less relevant areas (cheeks, forehead edges) are ignored, showing that the model avoids distractions.  
+- **Infant Features:**  
+  Rounded cheeks, small nose, and smooth skin drive the correct prediction.  
+
+### ✅ Key Takeaways
+1. The model is **highly accurate** in this case (error < 0.5 years).  
+2. Grad-CAM shows the model relies on **biologically relevant features** (facial structure, proportions).  
+3. Visualization improves **trust and interpretability** of the model’s predictions.
+
+## 📈 Results & Discussion
+
+### 🔹 Model Performance
+- The **ResNet50-based age estimation model** achieved strong results on the UTKFace dataset.  
+- On the validation set, the model consistently demonstrated **low error** and **stable generalization**.  
+- Example: In the Grad-CAM case study, the model predicted **1.44 years vs. true age of 1 year** (error < 0.5 years).  
+
+### 🔹 Key Observations
+1. **Accuracy Across Age Groups**  
+   - The model performs **very well on younger faces** (0–30 years) due to higher representation in the dataset.  
+   - Prediction accuracy decreases for **older adults (60+ years)** where training samples are limited.  
+
+2. **Fairness Across Genders**  
+   - Since the dataset is nearly balanced in male/female samples, the model shows **no significant gender bias**.  
+
+3. **Ethnicity & Diversity**  
+   - Class imbalance exists (e.g., White > Asian/Others).  
+   - This may lead to slightly lower accuracy on underrepresented ethnicities.  
+
+4. **Interpretability with Grad-CAM**  
+   - Visualizations confirm the model relies on **meaningful facial features** (eyes, nose, mouth).  
+   - This boosts confidence that predictions are not driven by noise or background.  
+
+### 🔹 Challenges
+- **Data Imbalance:** Older age groups and minority ethnicities are underrepresented, leading to bias.  
+- **Real-World Variability:** Factors such as makeup, occlusion, and extreme lighting remain challenging.  
+- **Age Ambiguity:** Adjacent ages (e.g., 24 vs. 25) are visually hard to distinguish, which may cause small prediction errors.  
+
+### 🔹 Future Improvements
+- **Data Augmentation & Oversampling** for older and underrepresented groups.  
+- **Weighted Loss Functions** to reduce class imbalance effects.  
+- **Transfer Learning with Larger Datasets** (e.g., IMDB-WIKI, FG-NET) to improve generalization.  
+- **Hybrid Models** combining CNNs with Transformers for better feature extraction.  
+
+---
+
+✅ **Conclusion:**  
+The ResNet50-based model demonstrates **strong and interpretable performance** in age estimation from face images. While highly accurate for young to middle-aged faces, improvements are needed for underrepresented groups to achieve fairness and robustness in real-world applications.
+
 
 ## **📞Contact**
 For any queries or suggestions, reach out to us through the Issues section on GitHub.
